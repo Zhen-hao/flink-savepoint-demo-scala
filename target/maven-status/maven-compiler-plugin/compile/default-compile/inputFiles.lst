@@ -1,0 +1,3 @@
+/Users/zhenhao.li/workspace/flink-influxdb-demo/src/main/scala/demo/data/DataPoint.java
+/Users/zhenhao.li/workspace/flink-influxdb-demo/src/main/scala/demo/data/KeyedDataPoint.java
+/Users/zhenhao.li/workspace/flink-influxdb-demo/src/main/scala/demo/sinks/InfluxDBSink.java

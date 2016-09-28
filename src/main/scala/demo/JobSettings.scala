@@ -2,6 +2,7 @@ package demo
 
 
 import java.io.File
+import java.util.Properties
 
 import com.typesafe.config.ConfigFactory
 import org.slf4j.LoggerFactory
@@ -16,17 +17,15 @@ class JobSettings(configFilePath: String) extends Serializable {
   val log = LoggerFactory.getLogger(this.getClass.getName)
   val config = ConfigFactory.parseFile(new File(configFilePath))
 
-  val groupID = config.getString("sas-poc.groupID")
-  val stateBackend = config.getString("sas-poc.stateBackend")
+  val sensorTopic = config.getString("kafka.topic")
+  val consumerID = config.getString("kafka.group-id")
 
-  val kafkaProducerEnrichedTopic = config.getString("sas-poc.topics.enriched")
+  val brokerList = config.getString("kafka.brokers")
+  val zookeeper = config.getString("kafka.zookeeper")
 
-  val outputSchema = config.getString("sas-poc.schema.output")
-
-  val kafkaConsumerConfView = Map(
-    "metadata.broker.list" -> "3.kafkas.prod.slu.faw.bskyb.com:9092,4.kafkas.prod.slu.faw.bskyb.com:9092,1.kafkas.prod.slu.faw.bskyb.com:9092",
-    "group.id" -> "kafka-poc-webstream-enrich-view",
-    "zookeeper.connect" ->  "1.kafkas.prod.slu.faw.bskyb.com:2181",
-    "schema.registry.url" -> "http://schemaregistry.faw.bskyb.com:8081")
+  val kafkaProperties = new Properties()
+  kafkaProperties.setProperty("bootstrap.servers", brokerList)
+  kafkaProperties.setProperty("zookeeper.connect", zookeeper)
+  kafkaProperties.setProperty("group.id", consumerID)
 
 }

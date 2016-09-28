@@ -1,7 +1,5 @@
 package demo
 
-import demo.udfs.UDF._
-
 
 /**
   * Created by zli01 on 16/08/2016.
@@ -12,11 +10,9 @@ object JobRunner {
 
   def main(args: Array[String]): Unit = {
 
-    val app1 = new Demo
-    app1.run("test-events", "windowSum", sumInOnePerioRolling, "window-sum")
+    val app = new Demo(args(0))
+    app.run()
 
-    val app2 = new Demo
-    app2.run("test-events", "totalSum", sumTotalCount, "total-sum")
   }
 }
 

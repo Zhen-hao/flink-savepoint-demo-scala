@@ -1,55 +1,57 @@
 package demo
 
-import java.util.Properties
-
 import demo.data.{DataPoint, DoubleNumber}
 import demo.sinks.InfluxDBSink
+import demo.udfs.UDF._
 import demo.udfs.UDFHelper._
 import org.apache.flink.api.scala._
+import org.apache.flink.runtime.state.filesystem.FsStateBackend
 import org.apache.flink.streaming.api.TimeCharacteristic
-import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer09
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema
 /**
   * Created by zhenhao.li on 17/09/16.
   */
-class Demo {
+class Demo(configFilePath: String) extends JobSettings(configFilePath) {
 
-    def run(sensorTopic: String, consumerID: String, measurementUDF: DataStream[(String, Long, Double)] => DataStream[DataPoint[DoubleNumber]], measurementName: String) = {
+    def run() = {
 
         val env = StreamExecutionEnvironment.getExecutionEnvironment
 
-        /*******    Check Point                *************/
-        //env.enableCheckpointing(5000) // checkpoint every 5000 msecs
+        /** Check Point */
+        env.enableCheckpointing(2000) // checkpoint every 5000 msecs
 
-        /*******    Process Time vs Event Time   ***********/
+        /** Save point and state backend */
+        env.setStateBackend(new FsStateBackend("file:///Users/zhenhao.li/workspace/flink-checkpoint"))
+
+        /** Process Time vs Event Time   */
         //env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
 
-        val properties = new Properties()
-        properties.setProperty("bootstrap.servers", "localhost:9092")
-        properties.setProperty("zookeeper.connect", "localhost:2181")
-        properties.setProperty("group.id", consumerID)
-
         val rawStream = env
-          .addSource(new FlinkKafkaConsumer09[String](sensorTopic, new SimpleStringSchema(), properties))
+          .addSource(new FlinkKafkaConsumer09[String](sensorTopic, new SimpleStringSchema(), kafkaProperties))
 
         val keyedStream = rawStream.map(string => string.split(","))
                            .map(array => ("key", array(0).toLong, array(1).toDouble))
 
-        /*******    Extract Eevent Time          *************/
+        /** Extract Eevent Time */
         val keyedStreamWithEventTime = keyedStream.assignAscendingTimestamps(_._2)
 
-        //pointStreamWithTime.print
-
-        val aggregatedStream =
-            keyedStreamWithEventTime.applyUDF(measurementUDF)
-
-        aggregatedStream.addSink(new InfluxDBSink[DataPoint[DoubleNumber]](measurementName))
 
 
-        env.execute("Consuming from the Kafka topic " + sensorTopic + " with groupID " + consumerID + " and writing aggregations to measurement name" + measurementName)
+        keyedStreamWithEventTime.applyUDF(sumInOnePerioRolling)
+          .addSink(new InfluxDBSink[DataPoint[DoubleNumber]]("window-sum"))
+
+        keyedStreamWithEventTime.applyUDF(sumTotalCount)
+          .addSink(new InfluxDBSink[DataPoint[DoubleNumber]]("total-sum"))
+
+        keyedStreamWithEventTime.applyUDF(time10)
+          .addSink(new InfluxDBSink[DataPoint[DoubleNumber]]("ten-times-value"))
+
+
+        env.execute("Flink Demo")
 
     }
 

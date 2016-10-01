@@ -20,7 +20,7 @@ class Demo(configFilePath: String) extends JobSettings(configFilePath) {
         val env = StreamExecutionEnvironment.getExecutionEnvironment
 
         /** Check Point */
-        env.enableCheckpointing(2000) // checkpoint every 5000 msecs
+        env.enableCheckpointing(2000)
 
         /** Save point and state backend */
         env.setStateBackend(new FsStateBackend("file:///Users/zhenhao.li/workspace/flink-checkpoint"))
@@ -32,23 +32,34 @@ class Demo(configFilePath: String) extends JobSettings(configFilePath) {
 
         val rawStream = env
           .addSource(new FlinkKafkaConsumer09[String](sensorTopic, new SimpleStringSchema(), kafkaProperties))
+          .uid("source")
 
-        val keyedStream = rawStream.map(string => string.split(","))
-                           .map(array => ("key", array(0).toLong, array(1).toDouble))
+        val keyedStream = rawStream
+                            .map(string => string.split(","))
+                            .map(array => ("key", array(0).toLong, array(1).toDouble))
+
+
 
         /** Extract Eevent Time */
         val keyedStreamWithEventTime = keyedStream.assignAscendingTimestamps(_._2)
+          .startNewChain().uid("event-time-extracted")//to give a name to this operator
 
 
-
-        keyedStreamWithEventTime.applyUDF(sumInOnePerioRolling)
+        keyedStreamWithEventTime
+          .applyUDF(sumInOnePerioRolling)
           .addSink(new InfluxDBSink[DataPoint[DoubleNumber]]("window-sum"))
 
-        keyedStreamWithEventTime.applyUDF(sumTotalCount)
+        keyedStreamWithEventTime
+          .applyUDF(sumTotalCount)
           .addSink(new InfluxDBSink[DataPoint[DoubleNumber]]("total-sum"))
 
-        keyedStreamWithEventTime.applyUDF(time10)
-          .addSink(new InfluxDBSink[DataPoint[DoubleNumber]]("ten-times-value"))
+        keyedStreamWithEventTime
+          .applyUDF(rawView)
+          .addSink(new InfluxDBSink[DataPoint[DoubleNumber]]("rawView"))
+
+        keyedStreamWithEventTime
+          .applyUDF(sumInOnePerioRolling2)
+          .addSink(new InfluxDBSink[DataPoint[DoubleNumber]]("rollingSum2"))
 
 
         env.execute("Flink Demo")

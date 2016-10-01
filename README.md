@@ -12,6 +12,6 @@ Then uncomment the sumInOnePerioRolling2 parts and rebuild the jar and summit it
 
 ### Data source
 The Kafka topic expects pure string messages that represent (time:[long],value:[double]) pairs. For example,
-1475182679053,0.5735764363510459 
+* 1475182679053,0.5735764363510459
 To start quickly, you can use the EventsRunner in https://github.com/Zhen-hao/kafka-fsm/tree/github to produce those pairs to the Kafka topic. 
 
